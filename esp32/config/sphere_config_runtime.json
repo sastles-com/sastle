@@ -1,0 +1,76 @@
+{
+  "//": "実行時変更可能な設定項目（NVS保存用）",
+  "version": 1,
+  
+  "display": {
+    "brightness": 128,
+    "gamma": 2.2,
+    "color_temperature": 5500,
+    "auto_brightness": false
+  },
+  
+  "image": {
+    "width": 320,
+    "height": 160,
+    "fps": 10,
+    "interpolation": "linear",
+    "jpeg_quality": 80
+  },
+  
+  "imu": {
+    "offset": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0,
+      "w": 1.0
+    },
+    "auto_calibration": true,
+    "filter_strength": 0.1
+  },
+  
+  "network": {
+    "wifi": {
+      "ssid": "isolation_sphere",
+      "password": "",
+      "auto_connect": true,
+      "reconnect_interval": 10
+    },
+    "ros2": {
+      "agent_ip": "192.168.1.100",
+      "agent_port": 8888,
+      "transport": "udp",
+      "qos_reliability": "best_effort"
+    }
+  },
+  
+  "pattern": {
+    "default_mode": "gradient",
+    "auto_switch": true,
+    "switch_interval": 10,
+    "animation_speed": 1.0,
+    "text_message": "ISOLATION SPHERE"
+  },
+  
+  "system": {
+    "log_level": "info",
+    "watchdog_enabled": true,
+    "watchdog_timeout": 1,
+    "performance_monitor": false,
+    "ota_auto_update": false
+  },
+  
+  "led_mapping": {
+    "csv_file": "/spiffs/led_coords.csv",
+    "strip_count": 4,
+    "leds_per_strip": 200,
+    "color_order": "GRB"
+  },
+  
+  "debug": {
+    "enable_test_mode": false,
+    "serial_output": true,
+    "round_display_mirror": true,
+    "memory_debug": false,
+    "timing_debug": false
+  }
+}

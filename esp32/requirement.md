@@ -36,14 +36,10 @@
 
 ### 1.3 開発環境
 - **ホストOS**: Ubuntu 22.04 LTS
-- **開発フレームワーク選定**:
-  - **ESP-IDF v5.x（推奨）**:
-    - 利点: DMA/ダブルバッファの低レベル制御、最新機能対応、公式サポート
-    - 欠点: 学習曲線が急、設定が複雑
-  - **PlatformIO**:
-    - 利点: IDE統合、ライブラリ管理が容易、マルチプラットフォーム
-    - 欠点: ESP-IDF最新機能の遅延、DMA制御の制限
-  - **選定基準**: DMA転送とPSRAM制御の要求から**ESP-IDF**を採用
+- **開発フレームワーク**: ESP-IDF v5.1.2以上（固定）
+  - DMA/ダブルバッファの低レベル制御が必要
+  - PSRAM制御とmicro-ROS統合
+  - ESP32S3の最新機能活用
 - **ROS2バージョン**: Humble Hawksbill
 - **ビルドシステム**: CMake / Ninja
 - **デバッグツール**: OpenOCD, GDB, ESP-IDF Monitor
@@ -52,49 +48,44 @@
 
 ### 2.1 IMU制御機能
 #### 2.1.1 BNO055センサー通信
+- **動作モード**: NDOF（Nine Degrees of Freedom）モード - BNO055内部でセンサーフュージョン実行
 - **通信方式**: I2C通信（400kHz Fast Mode）
 - **I2Cアドレス**: 0x28（デフォルト）または0x29（ADR=HIGH）
 - **取得データ**: 
-  - Quaternion（W, X, Y, Z各16bit）
+  - Quaternion（W, X, Y, Z各16bit）- BNO055内部で計算済み
   - キャリブレーションステータス（System, Gyro, Accel, Mag各2bit）
-  - 温度データ（センサー温度補正用）
-- **サンプリングレート**: 100Hz（10ms周期）
+- **データ取得方式**: 
+  - ポーリング方式（画像処理時に都度取得）
+  - 更新レート: 30Hz（画像フレームレートと同期）
+  - BNO055は100Hz内部更新を継続
 - **精度要件**: 
   - 静的精度: ±0.5度以内
   - 動的精度: ±1.0度以内（回転速度100°/s以下）
-- **キャリブレーション**:
-  - 起動時自動キャリブレーション（最大30秒）
-  - キャリブレーションデータのNVS保存・復元
-  - 実行中の動的キャリブレーション更新
+- **最小キャリブレーション機能**:
+  - キャリブレーションステータス監視
+  - System=3, Gyro=3を目標値として確保
+  - キャリブレーション状態のログ出力
 
 #### 2.1.2 姿勢データ処理
 - **Quaternion処理**:
-  - 正規化処理（単位Quaternion維持）
-  - SLERP（球面線形補間）による平滑化
-  - 異常値検出・除去（前回値との差分閾値: 0.1）
-- **フィルタリング**:
-  - Madgwickフィルタ（β=0.1）実装
-  - 更新周波数: 100Hz
-  - 計算精度: 単精度浮動小数点（float32）
+  - BNO055のNDOFモードから直接Quaternion取得
+  - データ欠損時は前回値を使用
+  - 異常値検出は実装保留（問題発生時に再検討）
 - **座標系変換**:
-  - センサー座標系→ワールド座標系変換
-  - 初期姿勢キャリブレーション（ユーザー指定基準姿勢）
+  - BNO055座標系→ガジェット座標系変換
+  - 初期姿勢オフセット記録
   - オフセット補正機能（UIコマンド経由）
 
 ### 2.2 ROS2通信機能
 #### 2.2.1 microROS2実装
 - **通信プロトコル**: micro-ROS (ROS2 Humble Hawksbill互換)
-- **トランスポート**: 
-  - WiFi UDP (優先)
-  - WiFi TCP (信頼性重視時)
-- **通信方式検討項目**:
-  - DDS-XRCE (micro-ROS標準)
-  - カスタムUDP実装（低遅延要求時）
-  - ROS2 Agent配置（Raspi or 中継器）
+- **トランスポート**: WiFi UDP（固定）
+- **通信方式**: DDS-XRCE（micro-ROS標準プロトコル）
+- **ROS2 Agent配置**: Raspberry Pi上で実行
 - **QoS設定**: 
-  - 画像: Best Effort, History Keep Last 2（ダブルバッファ）
+  - 画像: Best Effort, History Keep Last 1
   - IMU: Best Effort, History Keep Last 1
-  - UI: Reliable, History Keep Last 10
+  - UI: Best Effort, History Keep Last 1
 
 #### 2.2.2 トピック仕様
 **パブリッシュ**
@@ -107,21 +98,59 @@
 - メッセージ型: `sensor_msgs/CompressedImage`
 - 画像フォーマット: JPEG
 - 解像度: 320x160ピクセル
-- **ダブルバッファリング**: 受信中と処理中の2面管理
+- **ダブルバッファリング**: 
+  - PSRAM上に2つの画像バッファを配置
+  - 受信用バッファ: 320×160×3 = 153.6KB
+  - 処理用バッファ: 320×160×3 = 153.6KB
+  - セマフォによる排他制御で高速切り替え
+  - メモリアクセス: DMA経由で高速読み込み
 
 - トピック名: `/ui/command`
 - メッセージ型: `std_msgs/String` (JSON形式)
 - **コマンドフォーマット**:
   ```json
   {
-    "cmd": "brightness|offset|mode|play|stop",
+    "cmd": "brightness|offset|mode|pattern|system|imu|wifi|debug",
     "value": {
+      // 表示制御
       "brightness": 0-255,
+      "gamma": 0.1-3.0,
+      "color_temp": 2700-6500,
+      
+      // 姿勢制御
       "offset": {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0},
-      "mode": "normal|demo|test",
-      "playlist_id": 1
+      "imu_reset": true,
+      "calibration_trigger": true,
+      
+      // 動作モード
+      "mode": "normal|demo|test|pattern|calibration",
+      "pattern_type": "axis|text|gradient|grid|off",
+      "pattern_speed": 0.1-5.0,
+      "auto_switch": true,
+      
+      // 再生制御
+      "playlist_id": 1,
+      "frame_rate": 1-30,
+      "interpolation": "linear|cubic",
+      
+      // システム制御
+      "reboot": true,
+      "factory_reset": true,
+      "ota_update": "url_string",
+      "log_level": "debug|info|warn|error",
+      
+      // WiFi制御
+      "wifi_ssid": "network_name",
+      "wifi_password": "password",
+      "wifi_reconnect": true,
+      
+      // デバッグ機能
+      "debug_info": "memory|cpu|network|sensors",
+      "performance_monitor": true,
+      "test_mode": "led_check|communication|sensors"
     },
-    "timestamp": 1234567890
+    "timestamp": 1234567890,
+    "source": "web_ui|gamepad|automation"
   }
   ```
 
@@ -142,23 +171,20 @@
   - スループット: 200fps以上
 
 #### 2.3.2 画像変換処理
-- **入力**: 320x160ピクセル RGB画像
+- **入力**: 320x160ピクセル パノラマ画像（正距円筒図法）
 - **処理方式**: 
-  - アルゴリズム選定を開発初期に実施
-  - 候補1: 正距円筒図法（Equirectangular Projection）
-  - 候補2: キューブマップ投影
-  - 候補3: 直接球面サンプリング
+  - **確定**: 正距円筒図法（Equirectangular Projection）からのサンプリング
+  - パノラマ画像の緯度経度から球面LEDへのマッピング
 - **姿勢補正**:
   - IMU Quaternionによる逆回転変換
-  - 画像座標→球面座標→回転→LED座標の変換パイプライン
+  - パノラマ座標→球面座標→回転→LED座標の変換パイプライン
 - **補間方式**:
-  - バイリニア補間（品質優先時）
-  - 最近傍補間（速度優先時）
-  - 適応的補間選択機能
+  - **確定**: 最近傍補間（Nearest Neighbor）- 速度優先
+  - 将来オプション: バイリニア補間（品質モード時）
 - **最適化手法**:
   - ルックアップテーブル（LUT）による高速化
-  - SIMD命令の活用（ESP32S3 PIE機能）
   - 固定小数点演算の採用
+  - PSRAMからの効率的なピクセルアクセス
 - **出力**: 800個のLED用RGB値（各8bit）
 
 #### 2.3.3 LED配置マッピング
@@ -185,21 +211,33 @@
 - **プロトコル仕様**:
   ```c
   typedef struct {
-    uint16_t magic;      // 0xAA55 固定
-    uint8_t  frame_id;   // フレーム番号（0-255循環）
-    uint8_t  strip_id;   // ストリップID（0-3）
-    uint16_t data_len;   // ペイロード長（600固定）
-    uint8_t  led_data[600]; // RGB×200個
-    uint16_t crc16;      // CRC-16-CCITT
+    // ヘッダー部（制御情報）
+    uint16_t magic;          // 0xAA55 固定
+    uint8_t  frame_id;       // フレーム番号（0-255循環）
+    uint8_t  brightness;     // 全体明度（0-255）
+    uint8_t  mode;           // 動作モード（normal/demo/test等）
+    uint8_t  pattern_type;   // パターン種別（使用時）
+    uint16_t color_temp;     // 色温度（2700-6500K）
+    float    gamma;          // ガンマ補正値（4bytes）
+    uint32_t timestamp;      // フレームタイムスタンプ
+    uint8_t  reserved[8];    // 将来拡張用
+    
+    // データ部
+    uint16_t data_len;       // ペイロード長（2400固定 = 800×3）
+    uint8_t  led_data[2400]; // RGB×800個（全LED一括送信）
+    uint16_t crc16;          // CRC-16-CCITT（ヘッダー＋データ）
   } spi_packet_t;
   ```
 - **転送シーケンス**:
   1. CS Assert（GPIO5 = LOW）
-  2. ヘッダー送信（6bytes）
-  3. データ送信（600bytes）
+  2. ヘッダー送信（24bytes）
+  3. データ送信（2400bytes）
   4. CRC送信（2bytes）
   5. CS Deassert（GPIO5 = HIGH）
   6. 10μs待機
+- **RP2350側の処理**:
+  - 800LED分のデータを受信後、4ストリップに分割
+  - 各ストリップ200LED分を並列出力
 - **エラー処理**:
   - ACK/NACK応答確認（MISOライン）
   - タイムアウト: 100ms
@@ -257,9 +295,13 @@
 - **フェイルセーフ機能**:
   - **通信断絶検知**: 5秒間データ未受信で断絶判定
   - **自律動作モード**:
-    - デモパターン表示（虹色グラデーション回転）
+    - テストパターン表示機能：
+      - XYZ軸表示（赤・緑・青の点で各軸を表現）
+      - 文字表示（"ISOLATION SPHERE"等のテキスト）
+      - グラデーションパターン（虹色回転）
+      - 緯度経度グリッド表示（球面座標の可視化）
     - 最後の有効画像を保持表示
-    - IMU姿勢補正は継続動作
+    - IMU姿勢補正は継続動作（全パターンに適用）
   - **復帰処理**: 
     - 自動再接続試行（10秒間隔）
     - 接続復帰時の状態同期

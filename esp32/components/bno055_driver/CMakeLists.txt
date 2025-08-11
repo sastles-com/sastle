@@ -1,0 +1,14 @@
+idf_component_register(
+    SRCS 
+        "bno055_driver.c"
+        "bno055_i2c.c"
+        "quaternion_filter.c"
+        "bno055_calibration.c"
+    INCLUDE_DIRS 
+        "include"
+    REQUIRES 
+        driver
+        esp_timer
+        log
+        nvs_flash
+)

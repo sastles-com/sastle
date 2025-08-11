@@ -6,6 +6,7 @@
 #include "esp_chip_info.h"
 #include "esp_psram.h"
 #include "esp_heap_caps.h"
+#include "esp_flash.h"
 
 static const char *TAG = "HELLO_TEST";
 
@@ -24,8 +25,11 @@ void print_chip_info(void) {
             (chip_info.features & CHIP_FEATURE_BLE) ? " BLE" : "",
             (chip_info.features & CHIP_FEATURE_IEEE802154) ? " 802.15.4" : "");
     ESP_LOGI(TAG, "Silicon revision: %d", chip_info.revision);
+    // Get flash size using newer ESP-IDF v6.0 API
+    uint32_t flash_size = 0;
+    esp_flash_get_size(NULL, &flash_size);
     ESP_LOGI(TAG, "Flash size: %dMB %s",
-            spi_flash_get_chip_size() / (1024 * 1024),
+            flash_size / (1024 * 1024),
             (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
 }
 
@@ -41,6 +45,7 @@ void print_memory_info(void) {
     ESP_LOGI(TAG, "  Largest free block: %d bytes", 
             heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
     
+#if CONFIG_SPIRAM
     // PSRAM check
     if (esp_psram_is_initialized()) {
         ESP_LOGI(TAG, "PSRAM:");
@@ -65,6 +70,9 @@ void print_memory_info(void) {
         ESP_LOGW(TAG, "PSRAM: Not initialized ✗");
         ESP_LOGW(TAG, "Check menuconfig: Component config → ESP PSRAM");
     }
+#else
+    ESP_LOGI(TAG, "PSRAM: Disabled in configuration");
+#endif
 }
 
 void print_task_info(void) {

@@ -1,0 +1,18 @@
+idf_component_register(
+    SRCS 
+        "main.c"
+        "task_manager.c"
+        "system_config.c"
+        "error_handler.c"
+    INCLUDE_DIRS 
+        "."
+        "include"
+    REQUIRES 
+        driver
+        esp_timer
+        nvs_flash
+        esp_wifi
+        freertos
+        log
+        spi_flash
+)

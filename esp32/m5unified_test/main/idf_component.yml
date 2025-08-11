@@ -1,0 +1,5 @@
+## IDF Component Manager Manifest File
+dependencies:
+  m5stack/m5unified: "^0.1.17"
+  # Alternatively you can use:
+  # m5stack/m5unified: "*" # to use latest version

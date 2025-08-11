@@ -1,0 +1,212 @@
+name: ESP32 Isolation Sphere CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    - cron: '0 2 * * *'  # Daily build at 2 AM
+
+env:
+  ESP_IDF_VERSION: v5.1.2
+
+jobs:
+  static-analysis:
+    name: Static Code Analysis
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install analysis tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cppcheck clang-tools
+      
+      - name: Run cppcheck
+        run: |
+          cppcheck --enable=all --error-exitcode=1 \
+            --suppress=missingIncludeSystem \
+            --suppress=unmatchedSuppression \
+            --inline-suppr \
+            --xml --xml-version=2 \
+            main/ components/ test/ 2> cppcheck-report.xml
+      
+      - name: Run clang-analyzer
+        run: |
+          find . -name "*.c" -o -name "*.h" | xargs clang-tidy \
+            -checks='-*,clang-analyzer-*,bugprone-*,performance-*' \
+            -- -I/usr/include
+      
+      - name: Upload analysis reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: analysis-reports
+          path: |
+            cppcheck-report.xml
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-22.04
+    container:
+      image: espressif/idf:v5.1.2
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup ESP-IDF environment
+        run: |
+          . ${IDF_PATH}/export.sh
+      
+      - name: Build unit tests
+        run: |
+          cd test/unit
+          idf.py build
+      
+      - name: Run unit tests (QEMU)
+        run: |
+          # Note: Actual QEMU execution would require additional setup
+          echo "Unit tests would run here with QEMU"
+      
+      - name: Generate coverage report
+        run: |
+          gcov -b -c *.gcda
+          lcov --capture --directory . --output-file coverage.info
+          lcov --remove coverage.info '*/test/*' --output-file coverage.info
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.info
+          flags: unittests
+          name: codecov-umbrella
+
+  build:
+    name: Build Firmware
+    runs-on: ubuntu-22.04
+    container:
+      image: espressif/idf:v5.1.2
+    strategy:
+      matrix:
+        target: [esp32s3]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      
+      - name: Setup ESP-IDF
+        run: |
+          . ${IDF_PATH}/export.sh
+          idf.py --version
+      
+      - name: Configure project
+        run: |
+          idf.py set-target ${{ matrix.target }}
+          idf.py menuconfig --defaults
+      
+      - name: Build firmware
+        run: |
+          idf.py build
+          echo "Firmware size:"
+          idf.py size
+      
+      - name: Create artifacts
+        run: |
+          mkdir -p artifacts
+          cp build/*.bin artifacts/
+          cp build/*.elf artifacts/
+          cp build/flasher_args.json artifacts/
+      
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: firmware-${{ matrix.target }}
+          path: artifacts/
+
+  integration-tests:
+    name: Integration Tests
+    needs: build
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Python environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install test dependencies
+        run: |
+          pip install pytest robot pyserial
+      
+      - name: Download firmware
+        uses: actions/download-artifact@v3
+        with:
+          name: firmware-esp32s3
+          path: firmware/
+      
+      - name: Run integration tests
+        run: |
+          # Integration tests would run here with hardware-in-the-loop
+          echo "Integration tests placeholder"
+
+  performance-tests:
+    name: Performance Tests
+    needs: build
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'schedule' || contains(github.event.head_commit.message, '[perf]')
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Run performance benchmarks
+        run: |
+          # Performance tests would run here
+          echo "Performance tests placeholder"
+      
+      - name: Compare with baseline
+        run: |
+          # Compare performance metrics with baseline
+          echo "Performance comparison placeholder"
+
+  documentation:
+    name: Generate Documentation
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install Doxygen
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen graphviz
+      
+      - name: Generate documentation
+        run: |
+          doxygen Doxyfile
+      
+      - name: Deploy to GitHub Pages
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/html
+
+  release:
+    name: Create Release
+    needs: [static-analysis, unit-tests, build]
+    runs-on: ubuntu-22.04
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            firmware-esp32s3/*.bin
+            firmware-esp32s3/*.elf
+          draft: false
+          prerelease: false
+          generate_release_notes: true

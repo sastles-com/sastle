@@ -13,6 +13,9 @@
 #include "esp_err.h"
 #include "driver/i2c.h"
 
+// Forward declarations
+typedef struct quaternion_filter_stats_s quaternion_filter_stats_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif

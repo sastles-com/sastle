@@ -11,7 +11,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "esp_err.h"
-#include "bno055_driver.h"
+#include "bno055.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -60,12 +60,12 @@ typedef struct {
 /**
  * @brief Filter statistics
  */
-typedef struct {
+typedef struct quaternion_filter_stats_s {
     uint32_t sample_count;              // Total samples processed
     bool is_initialized;                // Filter initialization status
     uint32_t last_update_time;          // Last update timestamp
     bno055_quaternion_t current_quaternion; // Current filtered quaternion
-    bno055_vector_t current_euler;      // Current Euler angles (degrees)
+    bno055_vector3_t current_euler;      // Current Euler angles (degrees)
 } quaternion_filter_stats_t;
 
 /* =============================================================================
@@ -109,15 +109,15 @@ void quaternion_slerp(const bno055_quaternion_t* q1, const bno055_quaternion_t* 
  * @param v_in Input vector
  * @param v_out Output vector
  */
-void quaternion_rotate_vector(const bno055_quaternion_t* q, const bno055_vector_t* v_in, 
-                              bno055_vector_t* v_out);
+void quaternion_rotate_vector(const bno055_quaternion_t* q, const bno055_vector3_t* v_in, 
+                              bno055_vector3_t* v_out);
 
 /**
  * @brief Convert quaternion to Euler angles (roll, pitch, yaw)
  * @param q Input quaternion
  * @param euler Output Euler angles in degrees
  */
-void quaternion_to_euler(const bno055_quaternion_t* q, bno055_vector_t* euler);
+void quaternion_to_euler(const bno055_quaternion_t* q, bno055_vector3_t* euler);
 
 /**
  * @brief Initialize quaternion filter

@@ -115,8 +115,8 @@ void quaternion_slerp(const bno055_quaternion_t* q1, const bno055_quaternion_t* 
 /**
  * @brief Apply quaternion rotation to a 3D vector
  */
-void quaternion_rotate_vector(const bno055_quaternion_t* q, const bno055_vector_t* v_in, 
-                              bno055_vector_t* v_out) {
+void quaternion_rotate_vector(const bno055_quaternion_t* q, const bno055_vector3_t* v_in, 
+                              bno055_vector3_t* v_out) {
     if (!q || !v_in || !v_out) return;
     
     // Convert vector to quaternion (w=0, x,y,z = vector)
@@ -145,7 +145,7 @@ void quaternion_rotate_vector(const bno055_quaternion_t* q, const bno055_vector_
 /**
  * @brief Convert quaternion to Euler angles (roll, pitch, yaw)
  */
-void quaternion_to_euler(const bno055_quaternion_t* q, bno055_vector_t* euler) {
+void quaternion_to_euler(const bno055_quaternion_t* q, bno055_vector3_t* euler) {
     if (!q || !euler) return;
     
     // Roll (x-axis rotation)

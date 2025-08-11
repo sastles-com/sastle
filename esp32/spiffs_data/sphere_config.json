@@ -1,0 +1,35 @@
+{
+  "image": {
+    "width": 320,
+    "height": 160,
+    "fps": 10,
+    "quality": 80,
+    "format": "JPEG"
+  },
+  "led": {
+    "count": 800,
+    "brightness": 128,
+    "strip_count": 4,
+    "leds_per_strip": 200,
+    "update_rate_hz": 30
+  },
+  "imu": {
+    "sample_rate_hz": 100,
+    "calibration_enabled": true,
+    "orientation_offset": [1.0, 0.0, 0.0, 0.0],
+    "filter_strength": 5
+  },
+  "communication": {
+    "wifi_ssid": "YourWiFiSSID",
+    "wifi_password": "YourWiFiPassword",
+    "ros2_domain_id": 0,
+    "ros2_namespace": "sphere",
+    "update_rate_hz": 30
+  },
+  "system": {
+    "log_level": 3,
+    "debug_mode": false,
+    "watchdog_timeout_ms": 5000,
+    "performance_monitoring": true
+  }
+}

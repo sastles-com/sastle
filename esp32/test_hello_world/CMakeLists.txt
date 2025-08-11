@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 # Set additional component directories
-# set(EXTRA_COMPONENT_DIRS "../components")
+# set(EXTRA_COMPONENT_DIRS "../components")  # Temporarily disabled for simple test
 
 # Include ESP-IDF components
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)

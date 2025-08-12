@@ -120,6 +120,16 @@ https://github.com/sastles-com/sastle
 ESP-iDFでコンパイル，フラッシュする．
 - Double Buffer, DMA転送, PSRAM制御など高機能を要求するため
 
+#### 重要な技術資料
+以下の資料は過去の問題解決実績があり、必ず参照すること：
+
+1. **M5AtomS3R LCD バックライト制御解決記録**
+   - ファイル: `/home/yakatano/work/isolation-sphere/esp32/M5ATOMS3R_LCD_BACKLIGHT_SOLUTION.md`
+   - **重要**: バックライト制御はGPIO16による直接制御（I2Cではない）
+   - GPIO16 = HIGH で点灯、LOW で消灯
+   - PWM制御：500Hz、10-bit分解能で明度調整可能
+   - **必須**: 新しいLCD実装時は必ずこの仕様に従うこと
+
 ### Environment Setup
 python を使用する場合，uv　を使用する．
 ```bash

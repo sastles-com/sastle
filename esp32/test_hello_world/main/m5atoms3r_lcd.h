@@ -10,17 +10,17 @@
 #define LCD_HEIGHT       128
 #define LCD_BPP          16     // 16-bit RGB565
 
-// M5AtomS3R LCD GPIO pins
-#define LCD_PIN_MOSI     21
-#define LCD_PIN_SCLK     15
-#define LCD_PIN_CS       14
-#define LCD_PIN_DC       42     // Data/Command
-#define LCD_PIN_RST      48     // Reset
-#define LCD_PIN_BL       -1     // Backlight control (not available)
+// M5AtomS3R LCD GPIO pins (CORRECT - from past working configuration)
+#define LCD_PIN_MOSI     21     // SPI MOSI - G21 (confirmed working)
+#define LCD_PIN_SCLK     15     // SPI SCLK - G15 (confirmed working)
+#define LCD_PIN_CS       14     // Chip Select - G14 (confirmed working)
+#define LCD_PIN_DC       42     // Data/Command - G42 (confirmed working)
+#define LCD_PIN_RST      48     // Reset - G48 (confirmed working)
+#define LCD_PIN_BL       16     // Backlight control - GPIO16 (confirmed from M5Stack documentation)
 
 // SPI configuration
 #define LCD_SPI_HOST     SPI2_HOST
-#define LCD_SPI_FREQ     26000000    // 26MHz
+#define LCD_SPI_FREQ     1000000     // 1MHz (lower frequency for stability)
 #define LCD_SPI_MODE     0
 
 // Colors (RGB565)
@@ -81,6 +81,8 @@ typedef struct {
 // Function prototypes
 esp_err_t m5atoms3r_lcd_init(m5atoms3r_lcd_t* lcd);
 esp_err_t m5atoms3r_lcd_deinit(m5atoms3r_lcd_t* lcd);
+esp_err_t m5atoms3r_lcd_set_backlight(bool enable);
+esp_err_t m5atoms3r_lcd_set_backlight_pwm(uint8_t brightness);
 esp_err_t m5atoms3r_lcd_clear(m5atoms3r_lcd_t* lcd, uint16_t color);
 esp_err_t m5atoms3r_lcd_fill_rect(m5atoms3r_lcd_t* lcd, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
 esp_err_t m5atoms3r_lcd_draw_pixel(m5atoms3r_lcd_t* lcd, int16_t x, int16_t y, uint16_t color);

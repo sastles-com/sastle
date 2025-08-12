@@ -13,6 +13,9 @@ static const char *TAG = "IMU_MAIN";
 esp_err_t run_imu_integration_test(void);
 esp_err_t run_simple_hardware_test(void);
 esp_err_t run_direct_imu_lcd_test(void);
+esp_err_t run_lcd_unit_test(void);
+esp_err_t run_backlight_test(void);
+esp_err_t run_gpio_backlight_test(void);
 
 void print_system_info(void)
 {
@@ -53,11 +56,11 @@ void app_main(void)
     // Wait a moment for system stabilization
     vTaskDelay(pdMS_TO_TICKS(1000));
     
-    // Run IMU integration test (original working implementation)
-    ESP_LOGI(TAG, "Starting IMU integration test...");
-    esp_err_t ret = run_imu_integration_test();
+    // Run GPIO backlight test (priority)
+    ESP_LOGI(TAG, "Starting GPIO backlight test (GPIO16)...");
+    esp_err_t ret = run_gpio_backlight_test();
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "IMU integration test failed: %s", esp_err_to_name(ret));
+        ESP_LOGE(TAG, "LCD test failed: %s", esp_err_to_name(ret));
         ESP_LOGE(TAG, "System will continue with basic functionality");
         
         // Fallback: basic system monitoring
